@@ -1,8 +1,3 @@
-'''
-    DeepFM: A Factorization-Machine based Neural Network for CTR Prediction
-    by yongsaima@163.com
-
-'''
 from keras import optimizers
 from keras import backend as K
 from keras.models import Sequential
@@ -11,7 +6,7 @@ from keras.layers import RepeatVector, merge, Subtract, Lambda, Multiply, Embedd
 from sklearn.preprocessing import LabelEncoder
 from keras.models import Model
 from keras.engine.topology import Layer
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, recall_score
 
 class Added_Weights(Layer):
     def __init__(self, use_bias = False, **kwargs):
@@ -59,15 +54,15 @@ class DeepFM():
         self.sparse_label_dict = sparse_label_dict
         self.hidden_layer = hidden_layer
         self.embed_dim = embed_dim
+        self.sparse_label_dict = sparse_label_dict
         
-    def fit(self, train, y_train, test, y_test, optimizer="adam", loss='binary_crossentropy',
-            metrics=["accuracy"], concat_no_add = Flase, model_summary = False):
+    def fit(self, train, test, y_train, y_test, n_epoch=100, n_batch = 1000):
         cat_input = []
-        cat_output = []        
+        cat_output = []
         for col in self.sparse_features:
             input = Input(shape= (1,))
             cat_input.append(input)
-            emb = Embedding(sparse_label_dict[col], self.embed_dim, input_length =1 ,trainable = True)(input)
+            emb = Embedding(self.sparse_label_dict[col], self.embed_dim, input_length =1 ,trainable = True)(input)
             cat_output.append(emb)
          
         cat_output = Concatenate(axis=1)(cat_output)
@@ -98,8 +93,10 @@ class DeepFM():
             dense_input.append(input)
         dense_input = Concatenate(axis=1)(dense_input)
         '''
-        dense_input = Input(shape = (len(self.dense_features), ))  
+        dense_input = Input(shape = (len(self.dense_features), ))
+        
         dnn_input = Concatenate(axis=1)([Flatten()(cat_output), dense_input])
+        #dnn_input = dense_input 
         dnn_output = dnn_input 
         for layer in self.hidden_layer:
             dnn_output  = BatchNormalization()(dnn_output)
@@ -107,25 +104,20 @@ class DeepFM():
             dnn_output  = Dropout(0.2)(dnn_output)
         dnn_output = Dense(1, activation='linear')(dnn_output)
         
-        if concat_no_add:
-            output  = Concatenate(axis=1)([first_order, second_order, dnn_output])
-        else:
-            output  = Add()([first_order, second_order, dnn_output])
-            
+        #output  = Concatenate(axis=1)([first_order, second_order, dnn_output])
+        output  = Add()([first_order, second_order, dnn_output])
         output = Dense(1, activation='sigmoid')(output)
         model = Model(inputs = cat_input + [dense_input], outputs=output)
+        print("---starting the training---")
         model.compile(
-            optimizer= optimizer,
-            loss= loss,
-            metrics=metrics
+            optimizer="adam",
+            loss='binary_crossentropy',
+            metrics=["accuracy"]
         )
-        if model_summary:
-            print(model.summary())
-        model.fit([train[f] for f in self.sparse_features] + [train[self.dense_features]], y_train, nb_epoch=50, batch_size=1000)
+        #print(model.summary())
+        model.fit([train[f] for f in self.sparse_features] + [train[self.dense_features]], y_train, epochs = n_epoch, batch_size= n_batch)
         loss, accuracy = model.evaluate([test[f] for f in self.sparse_features] +  [test[self.dense_features]], y_test)
         print('\n', 'test accuracy:', accuracy)
         y_pred = model.predict([test[f] for f in self.sparse_features] +  [test[self.dense_features]])
         print("auc is ", roc_auc_score(y_test, y_pred))
-    def predict(self, pred):
-        y_pred = model.predict([pred[f] for f in self.sparse_features] +  [pred[self.dense_features]])
-        return y_pred
+        eval_matric(y_test, y_pred)
