@@ -56,7 +56,7 @@ class DeepFM():
         self.embed_dim = embed_dim
         self.sparse_label_dict = sparse_label_dict
         
-    def fit(self, train, test, y_train, y_test, n_epoch=100, n_batch = 1000):
+    def fit(self, train, y_train, n_epoch=100, n_batch = 1000):
         cat_input = []
         cat_output = []
         for col in self.sparse_features:
@@ -116,8 +116,14 @@ class DeepFM():
         )
         #print(model.summary())
         model.fit([train[f] for f in self.sparse_features] + [train[self.dense_features]], y_train, epochs = n_epoch, batch_size= n_batch)
-        loss, accuracy = model.evaluate([test[f] for f in self.sparse_features] +  [test[self.dense_features]], y_test)
-        print('\n', 'test accuracy:', accuracy)
-        y_pred = model.predict([test[f] for f in self.sparse_features] +  [test[self.dense_features]])
-        print("auc is ", roc_auc_score(y_test, y_pred))
-        eval_matric(y_test, y_pred)
+        self.model = model
+        
+    def predict(self, test):
+        y_pred = self.model.predict([test[f] for f in self.sparse_features] +  [test[self.dense_features]])
+        return y_pred
+    
+    def evaluate(self, test, y_test, metrics):
+        #loss, accuracy = self.model.evaluate([test[f] for f in self.sparse_features] +  [test[self.dense_features]], y_test)
+        #print('\n', 'test accuracy:', accuracy)
+        y_pred = self.predict(test)
+        return metrics(y_test, y_pred)

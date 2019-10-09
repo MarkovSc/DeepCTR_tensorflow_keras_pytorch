@@ -84,9 +84,7 @@ class DeepFM():
     def train(self, sess, train, y_train):
         feed_dict = dict()
         for index, col in enumerate(self.sparse_features):
-            #print(train[col].values.shape)
             feed_dict[self.sparse_input_list[index]] = train[[col]].values
-        #print(train[self.dense_features].values.shape)
         feed_dict[self.dense_input] = train[self.dense_features].values
         feed_dict[self.label] = y_train.values
         
@@ -98,7 +96,7 @@ class DeepFM():
         for index, col in enumerate(self.sparse_features):
             feed_dict[self.sparse_input_list[index]] = test[[col]].values
         feed_dict[self.dense_input] = test[self.dense_features].values
-        result = sess.run([self.out], feed_dict= feed_dict)
+        result = sess.run([self.out], feed_dict = feed_dict)
         return result
 
     def save(self, sess, path):
