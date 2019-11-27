@@ -47,7 +47,7 @@ class Added_Weights(Layer):
     def compute_output_shape(self, input_shape):
         return input_shape
     
-class WideAndDeep():
+class DCN():
     def __init__(self, sparse_features, dense_features, sparse_label_dict, hidden_layer, embed_dim):
         self.sparse_features = sparse_features
         self.dense_features = dense_features
@@ -78,7 +78,21 @@ class WideAndDeep():
         
         # second order for sparse features with fixed dim
         # vx * vx - vx, vx shape: (1, k)
-        
+        vx = Added_Weights()(cat_output)
+        sum_square = Lambda(lambda x: K.sum(x, axis =1))(vx)
+        sum_square = Multiply()([sum_square, sum_square])
+        square_sum = Multiply()([vx, vx])
+        square_sum = Lambda(lambda x: K.sum(x, axis =1))(square_sum)
+        second_order = Subtract()([sum_square, square_sum])
+        second_order = Lambda(lambda x: K.sum(x/2, axis =1, keepdims=True))(second_order)
+        print(second_order.shape)
+        '''
+        dense_input = []
+        for col in self.dense_features:
+            input = Input(shape = (1, ))
+            dense_input.append(input)
+        dense_input = Concatenate(axis=1)(dense_input)
+        '''
         dense_input = Input(shape = (len(self.dense_features), ))
         
         dnn_input = Concatenate(axis=1)([Flatten()(cat_output), dense_input])
@@ -91,7 +105,7 @@ class WideAndDeep():
         dnn_output = Dense(1, activation='linear')(dnn_output)
         
         #output  = Concatenate(axis=1)([first_order, second_order, dnn_output])
-        output  = Add()([first_order, dnn_output])
+        output  = Add()([first_order, second_order, dnn_output])
         output = Dense(1, activation='sigmoid')(output)
         model = Model(inputs = cat_input + [dense_input], outputs=output)
         print("---starting the training---")

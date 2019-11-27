@@ -10,13 +10,10 @@ import tensorflow as tf
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.metrics import roc_auc_score
 from time import time
-from tensorflow.python.keras.layers import *
 from .TFModel import TFModel
 
-class XDeepFM(TFModel):
+class DNN(TFModel):
     def __init__(self, sparse_features, dense_features, sparse_label_dict, hidden_layer, embed_dim):
-        super().__init__(sparse_features, dense_features, sparse_label_dict, hidden_layer, embed_dim)
-        
         self.sparse_features = sparse_features
         self.dense_features = dense_features
         self.sparse_label_dict = sparse_label_dict
@@ -24,10 +21,9 @@ class XDeepFM(TFModel):
         self.embed_dim = embed_dim
         self.embed_feature_size = len(self.sparse_features)
         self.weights=dict()
-        self.conv_layer = [25, 20, 20]
+        super().__init__(sparse_features, dense_features, sparse_label_dict, hidden_layer, embed_dim)
         self.build_model()
         
-    
     def build_model(self, opt = 'adam'):
         self.sparse_input_list = []
         self.dense_input = tf.placeholder(tf.float32, shape= [None, len(self.dense_features)], name = "dense_input")
@@ -46,57 +42,6 @@ class XDeepFM(TFModel):
         sparse_embed = tf.concat(cat_output, axis =1)
 
         emb_flat = tf.layers.flatten(sparse_embed)
-        first_order = tf.layers.dense(emb_flat, 1, activation=tf.nn.relu, use_bias=True)
-        
-        cat_output_expand = tf.expand_dims(sparse_embed, axis = 2)
-
-        # shape: -1, 1, feature_size, dim
-        x_0 = tf.transpose(cat_output_expand, perm=[0,3,2,1])
-        x_next = cat_output_expand
-    
-        cin_output = []
-        for layer in self.conv_layer:
-            x = tf.transpose(x_next, perm=[0,3,1,2])
-            z_0 = tf.matmul(x, x_0)
-            print(type(z_0))
-            print(z_0.shape)
-            x_next_list = []
-            pooling_output_list = []
-            for index in range(layer):
-                '''
-                z_1 = tf.transpose(z_0, perm=[0,2,3,1])
-                filter = tf.Variable(tf.random_normal([int(z_1.shape[1]), int(z_1.shape[2]),int(z_1.shape[-1]),1]))
-                #output = tf.nn.depthwise_conv2d(input= z_1, filter=filter, strides=[1,1,1,1], rate=[1,1], padding='VALID')
-                #output = tf.layers.conv2d(z_1, cat_output_expand.shape[-1], (int(z_1.shape[1]), int(z_1.shape[2])))
-                
-                #output = DepthwiseConv2D(int(z_1.shape[1]), int(z_1.shape[2]))(z_1)
-                print(output.shape)
-                #output = tf.layers.separable_conv2d(z_1, cat_output_expand.shape[-1], (int(z_1.shape[1]), int(z_1.shape[2])))
-                output = tf.squeeze(output, 2)
-                pooling_output = tf.reduce_sum(output, axis = 2)
-                '''
-                w = int(z_0.shape[2])
-                h = int(z_0.shape[3])
-                z_1 = tf.reshape(z_0, [-1, int(z_0.shape[1]), w * h])
-                weight = tf.Variable(tf.random_normal([w * h], 0.0, 0.01),
-                                               name = "layer" + str(index))
-                output = tf.tensordot(z_1, weight, axes = [[2], [0]])
-                output = tf.expand_dims(output, axis = 1)
-                pooling_output = tf.reduce_sum(output, axis = 2)
-                print(pooling_output.shape)
-                pooling_output_list.append(pooling_output)
-                x_next_list.append(output)
-            x_next = tf.concat(x_next_list, axis = 1)
-            # shape: -1, h_k, 1, dim
-            x_next = tf.expand_dims(x_next, axis = 2)
-            print("next shape", x_next.shape)
-            
-            x_pooling = tf.concat(pooling_output_list, axis = 1)
-            cin_output.append(x_pooling)
-        
-        cin_output =  tf.concat(cin_output, axis = 1)
-        cin_output = tf.layers.dense(cin_output, 1, activation=None, use_bias=True)
-
         deep_input = tf.concat([emb_flat, self.dense_input], axis =1)
         deep_output = deep_input
         for index, layer in enumerate(self.hidden_layer):
@@ -105,10 +50,7 @@ class XDeepFM(TFModel):
             deep_output = tf.layers.dropout(deep_output, self.keep_prob)
 
         deep_output = tf.layers.dense(deep_output, 1, activation=tf.nn.relu, use_bias=True)
-        deep = deep_output
-
-        concat_input = tf.concat([first_order, cin_output, deep], axis=1)
-        self.out = tf.layers.dense(concat_input, 1, activation=tf.nn.sigmoid, use_bias=True)
+        self.out = tf.layers.dense(deep_output, 1, activation=tf.nn.sigmoid, use_bias=True)
 
 
         self.loss = -tf.reduce_mean(
@@ -126,6 +68,7 @@ class XDeepFM(TFModel):
             clip_gradients, _ = tf.clip_by_global_norm(gradients, 5)
             self.train_op = self.optimizer.apply_gradients(
                 zip(clip_gradients, trainable_params), global_step=self.global_step)
+    
     
     def train(self, sess, train, y_train, drop_out = 0.2):
         feed_dict = dict()
@@ -147,11 +90,3 @@ class XDeepFM(TFModel):
         
         result = sess.run([self.out], feed_dict = feed_dict)
         return result
-
-    def save(self, sess, path):
-        saver = tf.train.Saver()
-        saver.save(sess, save_path=path)
-
-    def restore(self, sess, path):
-        saver = tf.train.Saver()
-        saver.restore(sess, save_path=path)

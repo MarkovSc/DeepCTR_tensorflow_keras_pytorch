@@ -72,7 +72,7 @@ if __name__ == "__main__":
 
     # 3.generate input data for model
 
-    train, test = train_test_split(data, test_size=0.2)
+    train, test = train_test_split(data, test_size=0.33)
     train_model_input = [train[name] for name in fixlen_feature_names]
 
     test_model_input = [test[name] for name in fixlen_feature_names]
@@ -83,7 +83,7 @@ if __name__ == "__main__":
                   metrics=['accuracy'], )
 
     history = model.fit(train_model_input, train[target].values,
-                        batch_size=2048, epochs=10, verbose=2, validation_split=0.2, )
+                        batch_size=1000, epochs=100, verbose=2, validation_split=0.2, )
     pred_ans = model.predict(test_model_input, batch_size=256)
     print("test LogLoss", round(log_loss(test[target].values, pred_ans), 4))
     print("test AUC", round(roc_auc_score(test[target].values, pred_ans), 4))
