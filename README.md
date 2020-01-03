@@ -6,17 +6,19 @@ DeepCTR self:
 
 # Experiment:
 ## File
-- python_deep_solution.py:
+- python_deep_solution.py: 
+
     use the python deepctr example usage to run it.
     https://deepctr-doc.readthedocs.io/en/latest/Examples.html
     just install deepctr : pip install deepctr and run it
 - kaggle_solution.py:
+
     kaggle solution by https://www.kaggle.com/snowdog/old-school-nnet
 
 - my_solution.ipynb:
+
     my solution use the self deepctr
 
-Kaggle Data:
 ## Data Background
 the dataset is from https://www.kaggle.com/c/porto-seguro-safe-driver-prediction/overview/description
 In this competition, you’re challenged to build a model that predicts the probability that a driver will initiate an auto insurance claim in the next year.
