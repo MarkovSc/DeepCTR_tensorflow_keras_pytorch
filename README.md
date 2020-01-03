@@ -6,17 +6,14 @@ DeepCTR self:
 
 # Experiment:
 ## File
-- python_deep_solution.py: 
-
-    use the python deepctr example usage to run it.
-    https://deepctr-doc.readthedocs.io/en/latest/Examples.html
+- python_deep_solution.py: < br >
+    use the python deepctr example usage to run it. < br >
+    https://deepctr-doc.readthedocs.io/en/latest/Examples.html < br >
     just install deepctr : pip install deepctr and run it
-- kaggle_solution.py:
-
+- kaggle_solution.py: < br >
     kaggle solution by https://www.kaggle.com/snowdog/old-school-nnet
 
-- my_solution.ipynb:
-
+- my_solution.ipynb: < br >
     my solution use the self deepctr
 
 ## Data Background
