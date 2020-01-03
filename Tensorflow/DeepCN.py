@@ -56,7 +56,7 @@ class DeepCN(TFModel):
             bias = tf.Variable(tf.random_normal([int(x_0.shape[1]), 1], 0.0, 0.01),name = "bias_" + str(cross_layer))
             x_t = tf.matmul(x_0_expand, x_l)
             x_t = tf.reshape(x_t,[-1,int(x_0.shape[1])])
-            x_l = tf.reshape(tf.matmul(x_t, weight),[-1, int(x_0.shape[1]), 1]) + bias + x_0_expand
+            x_l = tf.reshape(tf.matmul(x_t, weight),[-1, int(x_0.shape[1]), 1]) + bias + tf.reshape(x_l, [-1, int(x_0.shape[1]),1])
             x_l = tf.reshape(x_l, [-1, 1, int(x_0.shape[1])])
         cross_output = tf.reshape(x_l, [-1, int(x_0.shape[1])])
         
