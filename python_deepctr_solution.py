@@ -4,13 +4,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 
 from deepctr.models import DeepFM, xDeepFM, DCN
-from deepctr.inputs import  SparseFeat, DenseFeat,get_fixlen_feature_names
+from deepctr.inputs import SparseFeat, DenseFeat,get_feature_names
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler, OneHotEncoder
-
-from deepctr.models import DeepFM
-from deepctr.inputs import  SparseFeat, DenseFeat,get_fixlen_feature_names
 
 def recognize_feature(data, label_encoder = False):
     sparse_features = []
@@ -68,7 +65,7 @@ if __name__ == "__main__":
 
     dnn_feature_columns = fixlen_feature_columns
     linear_feature_columns = fixlen_feature_columns
-    fixlen_feature_names = get_fixlen_feature_names(linear_feature_columns + dnn_feature_columns)
+    fixlen_feature_names = get_feature_names(linear_feature_columns + dnn_feature_columns)
 
     # 3.generate input data for model
 
