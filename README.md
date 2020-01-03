@@ -6,7 +6,7 @@ DeepCTR self:
 
 # Experiment:
 ## File
-- python_deep_solution.py: <br/>
+- python_deepctr_solution.py: <br/>
     use the python deepctr example usage to run it. <br/>
     https://deepctr-doc.readthedocs.io/en/latest/Examples.html <br/>
     just install deepctr : pip install deepctr and run it
