@@ -1,8 +1,11 @@
 """
-Tensorflow implementation of DeepFM [1]
+Created on Jan 01, 2020
+@author: markov_alg@163.com
+
+Tensorflow implementation of XDeepFM [1]
 Reference:
-[1] DeepFM: A Factorization-Machine based Neural Network for CTR Prediction,
-    Huifeng Guo, Ruiming Tang, Yunming Yey, Zhenguo Li, Xiuqiang He.
+[1] XDeepFM: Combining explicit and implicit feature interactions for recommender systems,
+    Lian, Jianxun, Xiaohuan Zhou, Fuzheng Zhang, Zhongxia Chen, Xing Xie, and Guangzhong Sun.
 """
 
 import numpy as np
@@ -14,7 +17,7 @@ from tensorflow.python.keras.layers import *
 from .TFModel import TFModel
 
 class XDeepFM(TFModel):
-    def __init__(self, sparse_features, dense_features, sparse_label_dict, hidden_layer, embed_dim):
+    def __init__(self, sparse_features, dense_features, sparse_label_dict, hidden_layer, embed_dim, conv_layer=[25, 20, 20]):
         super().__init__(sparse_features, dense_features, sparse_label_dict, hidden_layer, embed_dim)
         
         self.sparse_features = sparse_features
@@ -24,7 +27,7 @@ class XDeepFM(TFModel):
         self.embed_dim = embed_dim
         self.embed_feature_size = len(self.sparse_features)
         self.weights=dict()
-        self.conv_layer = [25, 20, 20]
+        self.conv_layer = conv_layer
         self.build_model()
         
     
@@ -83,13 +86,12 @@ class XDeepFM(TFModel):
                 output = tf.tensordot(z_1, weight, axes = [[2], [0]])
                 output = tf.expand_dims(output, axis = 1)
                 pooling_output = tf.reduce_sum(output, axis = 2)
-                print(pooling_output.shape)
                 pooling_output_list.append(pooling_output)
                 x_next_list.append(output)
             x_next = tf.concat(x_next_list, axis = 1)
             # shape: -1, h_k, 1, dim
             x_next = tf.expand_dims(x_next, axis = 2)
-            print("next shape", x_next.shape)
+            #print("next shape", x_next.shape)
             
             x_pooling = tf.concat(pooling_output_list, axis = 1)
             cin_output.append(x_pooling)

@@ -2,7 +2,10 @@
 Created on Jan 01, 2020
 @author: markov_alg@163.com
 
-Tensorflow implementation of DNN
+Tensorflow implementation of WideDeep [1]
+Reference: 
+[1] Wide & deep learning for recommender systems,
+    Cheng, Heng-Tze, Levent Koc, Jeremiah Harmsen, Tal Shaked, Tushar Chandra, Hrishi Aradhye, Glen Anderson et al.
 """
 
 import numpy as np
@@ -12,8 +15,10 @@ from sklearn.metrics import roc_auc_score
 from time import time
 from .TFModel import TFModel
 
-class DNN(TFModel):
+class WideDeep(TFModel):
     def __init__(self, sparse_features, dense_features, sparse_label_dict, hidden_layer, embed_dim):
+        super().__init__(sparse_features, dense_features, sparse_label_dict, hidden_layer, embed_dim)
+        
         self.sparse_features = sparse_features
         self.dense_features = dense_features
         self.sparse_label_dict = sparse_label_dict
@@ -21,9 +26,9 @@ class DNN(TFModel):
         self.embed_dim = embed_dim
         self.embed_feature_size = len(self.sparse_features)
         self.weights=dict()
-        super().__init__(sparse_features, dense_features, sparse_label_dict, hidden_layer, embed_dim)
         self.build_model()
         
+    
     def build_model(self, opt = 'adam'):
         self.sparse_input_list = []
         self.dense_input = tf.placeholder(tf.float32, shape= [None, len(self.dense_features)], name = "dense_input")
@@ -42,6 +47,8 @@ class DNN(TFModel):
         sparse_embed = tf.concat(cat_output, axis =1)
 
         emb_flat = tf.layers.flatten(sparse_embed)
+        first_order = tf.layers.dense(emb_flat, 1, activation=tf.nn.relu, use_bias=True)
+        
         deep_input = tf.concat([emb_flat, self.dense_input], axis =1)
         deep_output = deep_input
         for index, layer in enumerate(self.hidden_layer):
@@ -50,7 +57,10 @@ class DNN(TFModel):
             deep_output = tf.layers.dropout(deep_output, self.keep_prob)
 
         deep_output = tf.layers.dense(deep_output, 1, activation=tf.nn.relu, use_bias=True)
-        self.out = tf.layers.dense(deep_output, 1, activation=tf.nn.sigmoid, use_bias=True)
+        deep = deep_output
+
+        concat_input = tf.concat([first_order, deep], axis=1)
+        self.out = tf.layers.dense(concat_input, 1, activation=tf.nn.sigmoid, use_bias=True)
 
 
         self.loss = -tf.reduce_mean(
@@ -68,7 +78,6 @@ class DNN(TFModel):
             clip_gradients, _ = tf.clip_by_global_norm(gradients, 5)
             self.train_op = self.optimizer.apply_gradients(
                 zip(clip_gradients, trainable_params), global_step=self.global_step)
-    
     
     def train(self, sess, train, y_train, drop_out = 0.2):
         feed_dict = dict()
@@ -90,3 +99,11 @@ class DNN(TFModel):
         
         result = sess.run([self.out], feed_dict = feed_dict)
         return result
+
+    def save(self, sess, path):
+        saver = tf.train.Saver()
+        saver.save(sess, save_path=path)
+
+    def restore(self, sess, path):
+        saver = tf.train.Saver()
+        saver.restore(sess, save_path=path)

@@ -1,3 +1,13 @@
+"""
+Created on Jan 01, 2020
+@author: markov_alg@163.com
+
+Tensorflow implementation of XDeepFM [1]
+Reference:
+[1] XDeepFM: Combining explicit and implicit feature interactions for recommender systems,
+    Lian, Jianxun, Xiaohuan Zhou, Fuzheng Zhang, Zhongxia Chen, Xing Xie, and Guangzhong Sun.
+"""
+
 from keras import optimizers
 from keras import backend as K
 from keras.models import Sequential

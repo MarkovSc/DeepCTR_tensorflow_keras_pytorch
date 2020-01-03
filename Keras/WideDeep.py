@@ -1,3 +1,13 @@
+"""
+Created on Jan 01, 2020
+@author: markov_alg@163.com
+
+Tensorflow implementation of WideDeep [1]
+Reference: 
+[1] Wide & deep learning for recommender systems,
+    Cheng, Heng-Tze, Levent Koc, Jeremiah Harmsen, Tal Shaked, Tushar Chandra, Hrishi Aradhye, Glen Anderson et al.
+"""
+
 from keras import optimizers
 from keras import backend as K
 from keras.models import Sequential

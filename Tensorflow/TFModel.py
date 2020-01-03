@@ -1,3 +1,7 @@
+"""
+Created on Jan 01, 2020
+@author: markov_alg@163.com
+"""
 import numpy as np
 import tensorflow as tf
 import sys

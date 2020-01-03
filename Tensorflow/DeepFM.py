@@ -1,4 +1,7 @@
 """
+Created on Jan 01, 2020
+@author: markov_alg@163.com
+
 Tensorflow implementation of DeepFM [1]
 Reference:
 [1] DeepFM: A Factorization-Machine based Neural Network for CTR Prediction,

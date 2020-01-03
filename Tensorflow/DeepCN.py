@@ -2,7 +2,10 @@
 Created on Jan 01, 2020
 @author: markov_alg@163.com
 
-Tensorflow implementation of DNN
+Tensorflow implementation of DCN [1]
+Reference:
+[1] DCN: Deep & Cross Network for Ad Click Predictions,
+    Ruoxi Wang, Gang Fu, Bin Fu, Mingliang Wang.
 """
 
 import numpy as np
@@ -12,8 +15,10 @@ from sklearn.metrics import roc_auc_score
 from time import time
 from .TFModel import TFModel
 
-class DNN(TFModel):
-    def __init__(self, sparse_features, dense_features, sparse_label_dict, hidden_layer, embed_dim):
+class DeepCN(TFModel):
+    def __init__(self, sparse_features, dense_features, sparse_label_dict, hidden_layer, embed_dim, cross_layer_num):
+        super().__init__(sparse_features, dense_features, sparse_label_dict, hidden_layer, embed_dim)
+        
         self.sparse_features = sparse_features
         self.dense_features = dense_features
         self.sparse_label_dict = sparse_label_dict
@@ -21,9 +26,10 @@ class DNN(TFModel):
         self.embed_dim = embed_dim
         self.embed_feature_size = len(self.sparse_features)
         self.weights=dict()
-        super().__init__(sparse_features, dense_features, sparse_label_dict, hidden_layer, embed_dim)
+        self.cross_layer_num = cross_layer_num
         self.build_model()
         
+    
     def build_model(self, opt = 'adam'):
         self.sparse_input_list = []
         self.dense_input = tf.placeholder(tf.float32, shape= [None, len(self.dense_features)], name = "dense_input")
@@ -42,15 +48,30 @@ class DNN(TFModel):
         sparse_embed = tf.concat(cat_output, axis =1)
 
         emb_flat = tf.layers.flatten(sparse_embed)
-        deep_input = tf.concat([emb_flat, self.dense_input], axis =1)
+        x_0 = tf.concat([self.dense_input, emb_flat], axis =1)
+        x_0_expand = tf.expand_dims(x_0, axis = 2)
+        x_l = tf.expand_dims(x_0, axis = 1)
+        for cross_layer in range(self.cross_layer_num):
+            weight = tf.Variable(tf.random_normal([int(x_0.shape[1]), 1], 0.0, 0.01),name = "cross_layer_" + str(cross_layer))
+            bias = tf.Variable(tf.random_normal([int(x_0.shape[1]), 1], 0.0, 0.01),name = "bias_" + str(cross_layer))
+            x_t = tf.matmul(x_0_expand, x_l)
+            x_t = tf.reshape(x_t,[-1,int(x_0.shape[1])])
+            x_l = tf.reshape(tf.matmul(x_t, weight),[-1, int(x_0.shape[1]), 1]) + bias + x_0_expand
+            x_l = tf.reshape(x_l, [-1, 1, int(x_0.shape[1])])
+        cross_output = tf.reshape(x_l, [-1, int(x_0.shape[1])])
+        
+        deep_input = x_0
         deep_output = deep_input
         for index, layer in enumerate(self.hidden_layer):
             deep_output = tf.layers.batch_normalization(deep_output)
             deep_output = tf.layers.dense(deep_output, layer, activation=tf.nn.relu, use_bias=True)
             deep_output = tf.layers.dropout(deep_output, self.keep_prob)
 
-        deep_output = tf.layers.dense(deep_output, 1, activation=tf.nn.relu, use_bias=True)
-        self.out = tf.layers.dense(deep_output, 1, activation=tf.nn.sigmoid, use_bias=True)
+        #deep_output = tf.layers.dense(deep_output, 1, activation=tf.nn.relu, use_bias=True)
+        deep = deep_output
+
+        concat_input = tf.concat([cross_output, deep], axis=1)
+        self.out = tf.layers.dense(concat_input, 1, activation=tf.nn.sigmoid, use_bias=True)
 
 
         self.loss = -tf.reduce_mean(
@@ -68,7 +89,6 @@ class DNN(TFModel):
             clip_gradients, _ = tf.clip_by_global_norm(gradients, 5)
             self.train_op = self.optimizer.apply_gradients(
                 zip(clip_gradients, trainable_params), global_step=self.global_step)
-    
     
     def train(self, sess, train, y_train, drop_out = 0.2):
         feed_dict = dict()
@@ -90,3 +110,11 @@ class DNN(TFModel):
         
         result = sess.run([self.out], feed_dict = feed_dict)
         return result
+
+    def save(self, sess, path):
+        saver = tf.train.Saver()
+        saver.save(sess, save_path=path)
+
+    def restore(self, sess, path):
+        saver = tf.train.Saver()
+        saver.restore(sess, save_path=path)
