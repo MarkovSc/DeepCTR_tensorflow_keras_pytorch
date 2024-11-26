@@ -12,10 +12,9 @@ from keras import optimizers
 from keras import backend as K
 from keras.models import Sequential
 from keras.layers import Input,Dense, concatenate,Dropout,BatchNormalization,Activation,Flatten,Add
-from keras.layers import RepeatVector, merge, Subtract, Lambda, Multiply, Embedding, Concatenate, Reshape
+from keras.layers import RepeatVector, Subtract, Lambda, Multiply, Embedding, Concatenate, Reshape
 from sklearn.preprocessing import LabelEncoder
 from keras.models import Model
-from keras.engine.topology import Layer
 from sklearn.metrics import roc_auc_score, recall_score
 
 class Added_Weights(Layer):
@@ -58,24 +57,36 @@ class Added_Weights(Layer):
         return input_shape
     
 class DeepFM():
-    def __init__(self, sparse_features, dense_features, sparse_label_dict, hidden_layer, embed_dim):
+    def __init__(self, sparse_features, dense_features, hidden_layer=[128,256,128], embed_dim=8, sparse_label_dict=None):
         self.sparse_features = sparse_features
         self.dense_features = dense_features
         self.sparse_label_dict = sparse_label_dict
         self.hidden_layer = hidden_layer
         self.embed_dim = embed_dim
-        self.sparse_label_dict = sparse_label_dict
+        self.voc_dim = sparse_label_dict if type(sparse_label_dict) == type(3) else 1000
+        if type(sparse_label_dict) != type([1]):
+            self.sparse_label_dict = dict([(col,100) for col in self.sparse_features])
+        else:
+            self.sparse_label_dict = dict([(col,self.voc_dim) for col in self.sparse_features])    
         
-    def fit(self, train, y_train, n_epoch=100, n_batch = 1000):
-        cat_input = []
+    def build(self):
+        num_output = []
         cat_output = []
+        input_dict = {}
         for col in self.sparse_features:
-            input = Input(shape= (1,))
-            cat_input.append(input)
-            emb = Embedding(self.sparse_label_dict[col], self.embed_dim, input_length =1 ,trainable = True)(input)
+            input = Input(shape= (1,), dtype=tf.string)
+            input_dict[col] = input
+            cat_tensor = tf.keras.layers.experimental.preprocessing.Hashing(num_bins= (self.sparse_label_dict[col] + 1))(input)
+            emb = Embedding(self.sparse_label_dict[col]+1, output_dim=self.embed_dim, input_length =1 ,trainable = True)(cat_tensor)
             cat_output.append(emb)
+            
+        for col in self.dense_features:
+            input = Input(shape= (1,), dtype='float64')
+            input_dict[col] = input
+            num_output.append(input)     
          
         cat_output = Concatenate(axis=1)(cat_output)
+        num_output = Concatenate(axis=1)(num_output)
         
         first_order = Added_Weights(use_bias = True)(cat_output)
         first_order = Flatten()(first_order)
@@ -96,17 +107,8 @@ class DeepFM():
         second_order = Subtract()([sum_square, square_sum])
         second_order = Lambda(lambda x: K.sum(x/2, axis =1, keepdims=True))(second_order)
         print(second_order.shape)
-        '''
-        dense_input = []
-        for col in self.dense_features:
-            input = Input(shape = (1, ))
-            dense_input.append(input)
-        dense_input = Concatenate(axis=1)(dense_input)
-        '''
-        dense_input = Input(shape = (len(self.dense_features), ))
         
-        dnn_input = Concatenate(axis=1)([Flatten()(cat_output), dense_input])
-        #dnn_input = dense_input 
+        dnn_input = Concatenate(axis=1)([Flatten()(cat_output), num_output])
         dnn_output = dnn_input 
         for layer in self.hidden_layer:
             dnn_output  = BatchNormalization()(dnn_output)
@@ -126,10 +128,15 @@ class DeepFM():
         )
         #print(model.summary())
         model.fit([train[f] for f in self.sparse_features] + [train[self.dense_features]], y_train, epochs = n_epoch, batch_size= n_batch)
-        self.model = model
+        return model
+        
+    def fit(self, train, y_train, n_epoch=10, n_batch = 1000):
+        self.model = self.build()
+        #print(model.summary())
+        self.model.fit(dict([(f, train[f]) for f in self.sparse_features + self.dense_features]), y_train, epochs = n_epoch, batch_size= n_batch)
         
     def predict(self, test):
-        y_pred = self.model.predict([test[f] for f in self.sparse_features] +  [test[self.dense_features]])
+        y_pred = self.model.predict(dict([(f, test[f]) for f in self.sparse_features + self.dense_features]))
         return y_pred
     
     def evaluate(self, test, y_test, metrics):
